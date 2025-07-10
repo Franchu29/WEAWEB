@@ -48,7 +48,8 @@ export default function Mesas() {
       await loadApiBaseUrl();
       console.log('Eliminando plato con ID:', id_platoxcomanda);
       console.log('Ingredientes a eliminar:', ingredientes);
-      // 1. Eliminar ingredientes asociados al plato
+
+      // 1. Eliminar ingredientes
       for (const ing of ingredientes) {
         const resIng = await fetch(`${config.API_BASE_URL}/api/comanda/plato/eliminar_ingrediente`, {
           method: 'DELETE',
@@ -57,11 +58,11 @@ export default function Mesas() {
         });
         if (!resIng.ok) {
           console.error('Error al eliminar ingrediente', await resIng.json());
-          return; // Detiene si hay un error
+          return;
         }
       }
 
-      // 2. Eliminar el plato de la comanda
+      // 2. Eliminar plato
       const resPlato = await fetch(`${config.API_BASE_URL}/api/comanda/eliminar_plato`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -69,11 +70,24 @@ export default function Mesas() {
       });
 
       if (resPlato.ok) {
-        // Actualiza la lista local
-        setComandas(prev => ({
-          ...prev,
-          platos: prev.platos.filter(p => p.id_platoxcomanda !== id_platoxcomanda),
-        }));
+        setComandas(prev => {
+          const platosActualizados = prev.platos.filter(p => p.id_platoxcomanda !== id_platoxcomanda);
+
+          // Recalcular total
+          const nuevoPrecio = platosActualizados.reduce((total, p) => total + p.precio, 0);
+
+          // Aplicar descuento de burritos si es necesario
+          const burritoCount = platosActualizados.filter(p =>
+            p.nombre?.toLowerCase().includes('burrito')
+          ).length;
+          const descuentoBurritos = Math.floor(burritoCount / 2) * 800;
+
+          return {
+            ...prev,
+            platos: platosActualizados,
+            precio_final: nuevoPrecio - descuentoBurritos
+          };
+        });
       }
     } catch (err) {
       console.error('Error al eliminar plato:', err);
@@ -122,7 +136,7 @@ export default function Mesas() {
 
   return (
     <button
-        className="mesaButton"
+        className={`mesaButton-mesas ${isDisponible ? 'disponible' : 'ocupada'}`}
         style={{
         backgroundColor: isDisponible ? '#ccc' : '#555',
         }}
@@ -137,22 +151,22 @@ export default function Mesas() {
   <MesaList>
     {({ mesas, isLoading }) => (
       <div
-        className="background"
+        className="background-mesas"
         style={{
           backgroundImage: `url('/assets/fondo.webp')`,
           backgroundSize: 'cover',
           minHeight: '100vh',
         }}
       >
-        <div className="container">
-          <div className="box">
-            <h2 className="text">Número de Mesas</h2>
+        <div className="container-mesas">
+          <div className="box-mesas">
+            <h2 className="text-mesas">Número de Mesas</h2>
           </div>
 
           {isLoading ? (
             <div className="spinner">Cargando...</div>
           ) : mesas.length > 0 ? (
-            <div className="grid">
+            <div className="grid-mesas">
               {mesas.map((item, index) => (
                 <div key={item.id || index}>{renderMesa({ item })}</div>
               ))}
@@ -163,111 +177,134 @@ export default function Mesas() {
 
           {/* Modal */}
           {modalVisible && (
-            <div className="modalOverlay">
-              <div className="modalContent">
-                <button className="closeButton" onClick={() => setModalVisible(false)}>
-                  ✕
-                </button>
-
-                <h3>Mesa {mesaSeleccionada?.id} está ocupada</h3>
-
-                {comandas && comandas.id ? (
-                  <div className="modalSection">
-                    <p><strong>Cliente:</strong> {comandas.nombre_cliente}</p>
-                    <p><strong>Fecha:</strong> {new Date(comandas.fecha).toLocaleString()}</p>
-                    <p><strong>Tipo de Consumo:</strong> {comandas.tipo_consumo === 'L' ? 'Para Llevar' : 'Para Servir'}</p>
-                    <p><strong>Platos:</strong></p>
-
-                    {comandas.platos.map((plato, i) => (
-                      <div key={i} className="platoCard">
-                        <p><strong>{plato.nombre}</strong> - ${plato.precio}</p>
-                        {plato.foto && (
-                          <img
-                            src={`${config.API_BASE_URL}${plato.foto}`}
-                            alt={plato.nombre}
-                            className="platoImage"
-                          />
-                        )}
-                        {plato.ingredientes.length > 0 && (
-                          <>
-                            <p><strong>Ingredientes:</strong></p>
-                            <ul>
-                              {plato.ingredientes.map((ing, j) => (
-                                <li key={j}>- {ing.nombre}</li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
-                        {plato.comentario?.trim() && (
-                          <>
-                            <p><strong>Comentario:</strong></p>
-                            <p>{plato.comentario}</p>
-                          </>
-                        )}
-
-                        <button
-                          className="deleteButton"
-                          onClick={() => eliminarPlato(plato.id_platoxcomanda, plato.ingredientes)}
-                        >
-                          🗑️ Eliminar
-                        </button>
-                        <hr />
-                      </div>
-                    ))}
-
-                    {descuentoBurritos > 0 && (
-                      <p><strong>Descuento Burritos:</strong> - ${descuentoBurritos}</p>
-                    )}
-                    <p><strong>Total a pagar:</strong> ${comandas.precio_final}</p>
-
-                    <div className="modalButtons">
-                      <button
-                        className="modalButton"
-                        style={{ backgroundColor: '#00A99D' }}
-                        onClick={() => {
-                          setModalVisible(false);
-                          navigate('/platos', { state: { datos } });
-                        }}
-                      >
-                        Agregar Plato
-                      </button>
-
-                      <button
-                        className="modalButton"
-                        style={{ backgroundColor: 'red' }}
-                        onClick={finalizarComanda}
-                      >
-                        Finalizar
+            <div className="modalOverlay-mesas">
+              <div className="modalContent-mesas">
+                <div className="modalScrollContent-mesas">
+                    <div>
+                      <button className="closeButton-mesas" onClick={() => setModalVisible(false)}>
+                        ✕
                       </button>
                     </div>
+                    <h3>Mesa {mesaSeleccionada?.id} está ocupada</h3>
 
-                    <button
-                      className="modalButton"
-                      style={{ backgroundColor: '#007AFF', marginTop: 10 }}
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`${config.API_BASE_URL}/api/imprimir_comanda/${comandas.id}`);
-                          if (response.ok) {
-                            alert('Comanda enviada a impresión');
-                          } else {
-                            alert('No se pudo imprimir la comanda');
-                          }
-                        } catch (err) {
-                          alert('Error de red al imprimir la comanda');
-                        }
-                      }}
-                    >
-                      Imprimir comanda
-                    </button>
-                  </div>
-                ) : (
-                  <p>No hay comandas.</p>
-                )}
+                    {comandas && comandas.id ? (
+                      <div className="modalSection-mesas">
+                        <p><strong>Cliente:</strong> {comandas.nombre_cliente}</p>
+                        <p><strong>Fecha:</strong> {new Date(comandas.fecha).toLocaleString()}</p>
+                        <p><strong>Tipo de Consumo:</strong> {comandas.tipo_consumo === 'L' ? 'Para Llevar' : 'Para Servir'}</p>
+                        <p><strong>Platos:</strong></p>
+
+                        {[...comandas.platos]
+                          .sort((a, b) => {
+                            const esBebida = (nombre) => {
+                              if (!nombre) return false;
+                              const n = nombre.toLowerCase();
+                              return (
+                                n.includes('bebestible') ||
+                                n.includes('café') ||
+                                n.includes('postre') ||
+                                n.includes('infusión') ||
+                                n.includes('smoothie')
+                              );
+                            };
+
+                            const aEsBebida = esBebida(a.nombre);
+                            const bEsBebida = esBebida(b.nombre);
+
+                            if (aEsBebida === bEsBebida) return 0;
+                            return aEsBebida ? 1 : -1; // Bebidas al final
+                          })
+                          .map((plato, i) => (
+                            <div key={i} className="platoCard-mesas">
+                              <p><strong>{plato.nombre}</strong> - ${plato.precio}</p>
+                              {plato.foto && (
+                                <img
+                                  src={`${config.API_BASE_URL}${plato.foto}`}
+                                  alt={plato.nombre}
+                                  className="platoImage-mesas"
+                                />
+                              )}
+                              {plato.ingredientes.length > 0 && (
+                                <>
+                                  <p><strong>Ingredientes:</strong></p>
+                                  <ul>
+                                    {plato.ingredientes.map((ing, j) => (
+                                      <li key={j}>- {ing.nombre}</li>
+                                    ))}
+                                  </ul>
+                                </>
+                              )}
+                              {plato.comentario?.trim() && (
+                                <>
+                                  <p><strong>Comentario:</strong></p>
+                                  <p>{plato.comentario}</p>
+                                </>
+                              )}
+
+                              <button
+                                className="deleteButton-mesas"
+                                onClick={() => eliminarPlato(plato.id_platoxcomanda, plato.ingredientes)}
+                              >
+                                🗑️ Eliminar
+                              </button>
+                              <hr />
+                            </div>
+                        ))}
+
+                        {descuentoBurritos > 0 && (
+                          <p><strong>Descuento Burritos:</strong> - ${descuentoBurritos}</p>
+                        )}
+                        <p><strong>Total a pagar:</strong> ${comandas.precio_final}</p>
+
+                        <div className="modalButton-mesas">
+                          <button
+                            className="modalButton-mesas"
+                            style={{ backgroundColor: '#00A99D' }}
+                            onClick={() => {
+                              setModalVisible(false);
+                              navigate('/platos', { state: { datos } });
+                            }}
+                          >
+                            Agregar Plato
+                          </button>
+
+                          <button
+                            className="modalButton-mesas"
+                            style={{ backgroundColor: 'red' }}
+                            onClick={finalizarComanda}
+                          >
+                            Finalizar
+                          </button>
+                        </div>
+
+                        <button
+                          className="modalButton-mesas modalButton-centered"
+                          style={{ backgroundColor: '#007AFF', marginTop: 10 }}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`${config.API_BASE_URL}/api/imprimir_comanda/${comandas.id}`);
+                              if (response.ok) {
+                                alert('Comanda enviada a impresión');
+                              } else {
+                                alert('No se pudo imprimir la comanda');
+                              }
+                            } catch (err) {
+                              alert('Error de red al imprimir la comanda');
+                            }
+                          }}
+                        >
+                          Imprimir comanda
+                        </button>
+                      </div>
+                    ) : (
+                      <p>No hay comandas.</p>
+                    )}
+                </div>
               </div>
             </div>
           )}
 
-          <button className="cancelButton" onClick={() => navigate(-1)}>
+          <button className="cancelButton-mesas" onClick={() => navigate(-1)}>
             Cancelar
           </button>
         </div>
