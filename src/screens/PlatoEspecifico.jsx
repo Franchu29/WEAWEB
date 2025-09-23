@@ -390,13 +390,12 @@ export default function PlatoEspecificoWeb() {
 
             <div className="comentarioContainer">
                 <h3 className="ingredientesTitulo">Comentarios adicionales</h3>
-                <textarea
+              <textarea
                 className="textInputComentario"
                 placeholder="Escribe tus observaciones aquí..."
                 value={comentario}
                 onChange={(e) => setComentario(e.target.value)}
-                rows={4}
-                />
+              />
             </div>
 
             </div>

@@ -124,7 +124,7 @@ export default function ResumenPedidoWeb() {
           }
         }
 
-        navigate('/'); // Navegar al Home después de crear la comanda
+        navigate('/mesa', { state: { mesaId: datos.id_mesa } }); // Navegar a la mesa después de crear la comanda
 
         } else if (estado_mesa.estado === 'O') {
           // obtener comanda existente
